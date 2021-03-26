@@ -1,29 +1,71 @@
-const app = require("./app");
+const app = require("../app");
 const request = require("supertest")
+const db = require("../db");
 
-const items = require("./fakeDb");
-const testObj = {name: "carrot", price: "$1.00"};
+beforeEach( async () => {
+    await db.query(
+        `INSERT INTO companies (code, name, description)
+        VALUES ('ibm', 'IBM', 'old company'), ('apple', 'APPLE', 'less old company')
+        RETURNING code, name, description`,
+        )
+    });
 
-beforeEach( () => {
-  items.add(testObj);
-  items.add({name: "banana", price: "$0.50"})
-});
+afterEach( async () => {
+    await db.query(
+    `DELETE from companies
+    WHERE code = 'ibm' `),
 
-afterEach( () => {
-  items.deleteAll();
+    await db.query(
+    `DELETE from companies
+    WHERE code = 'apple'`),
+
+    await db.query(
+        `DELETE from companies
+        WHERE code = 'tesla'`)
+
+
 });
 
 describe("should correctly call methods", () => {
-  test("gets all items", async () => {
-    const resp = await request(app).get('/items');
-    
-    expect(resp.body.length).toEqual(2);
+  test("gets all companies", async () => {
+    const resp = await request(app).get('/companies');
+
     expect(resp.statusCode).toEqual(200);
+    expect(resp.body.companies.length).toEqual(2);
+  });
+});
+
+describe("POST /companies", () => {
+    test("test adding new company", async () => {
+        const post = await request(app)
+        .post(`/companies`)
+        .send({ code:'tesla', name: 'Tesla', description:'cool new company' });
+       
+      expect(post.statusCode).toEqual(201);
+      const resp = await request(app).get('/companies');
+      expect(resp.body.companies.length).toEqual(3);
+
+
+    });
   });
 
-  test("adds new item", async () => {
-    const resp = await request(app).post('/items').send({name: "pizza", price: "$10.00"});
-
-    expect(resp.body).toEqual({name: "pizza", price: "$10.00"});
-    expect(resp.statusCode).toEqual(201);
+  describe("PUT /companies/:code", function () {
+    test("Update a single company", async function () {
+      const resp = await request(app)
+          .put(`/companies/ibm`)
+          .send({ code: 'ibm',name: "Troll", description: 'under the bridge' });
+          //console.log(resp);
+      expect(resp.statusCode).toEqual(200);
+      expect(resp.body.company.name).toEqual('Troll'
+      );
+    });
+  
+    test("Respond with 404 if nout found", async function () {
+      const resp = await request(app).patch(`/companies/0`);
+      expect(resp.statusCode).toEqual(404);
+    });
   });
+  
+  
+
+

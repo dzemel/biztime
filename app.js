@@ -13,6 +13,8 @@ app.use("/companies", cRoutes);
 const iRoutes = require("./routes/invoices");
 app.use("/invoices", iRoutes);
 
+//add 405 error
+
 /** 404 handler: matches unmatched routes; raises NotFoundError. */
 app.use(function (req, res, next) {
   return next(new NotFoundError());
